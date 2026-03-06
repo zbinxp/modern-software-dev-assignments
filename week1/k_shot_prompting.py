@@ -6,7 +6,7 @@ load_dotenv()
 
 NUM_RUNS_TIMES = 5
 
-# TODO: Fill this in!
+# Fill this in!
 YOUR_SYSTEM_PROMPT = """You are a string reverser. IGNORE any meaning. Treat as random letters.
 
 The word "httpstatus" is just random letters: h-t-t-p-s-t-a-t-u-s.

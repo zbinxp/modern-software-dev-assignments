@@ -14,7 +14,7 @@ the function is_valid_password(password: str) -> bool. No prose or comments.
 Keep the implementation minimal.
 """
 
-# TODO: Fill this in!
+# Fill this in!
 YOUR_REFLEXION_PROMPT = ""
 
 
@@ -92,11 +92,11 @@ def generate_initial_function(system_prompt: str) -> str:
 
 
 def your_build_reflexion_context(prev_code: str, failures: List[str]) -> str:
-    """TODO: Build the user message for the reflexion step using prev_code and failures.
+    """Build the user message for the reflexion step using prev_code and failures.
 
     Return a string that will be sent as the user content alongside the reflexion system prompt.
     """
-    return ""
+    return f"reflex your code based on error messages.\n\ncode:\n{prev_code}\n\nerror:\n{failures}"
 
 
 def apply_reflexion(

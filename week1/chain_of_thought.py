@@ -7,7 +7,7 @@ load_dotenv()
 
 NUM_RUNS_TIMES = 5
 
-# TODO: Fill this in!
+# Fill this in!
 YOUR_SYSTEM_PROMPT = "Think step by step."
 
 

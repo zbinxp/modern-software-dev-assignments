@@ -8,7 +8,7 @@ load_dotenv()
 
 NUM_RUNS_TIMES = 5
 
-# TODO: Fill this in! Try to get as close to 100% correctness across all runs as possible.
+# Fill this in! Try to get as close to 100% correctness across all runs as possible.
 YOUR_SYSTEM_PROMPT = "Iterate 3 times, collect the results and return ONLY the majority answer."
 
 USER_PROMPT = """
