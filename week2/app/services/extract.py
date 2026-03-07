@@ -87,3 +87,60 @@ def _looks_imperative(sentence: str) -> bool:
         "investigate",
     }
     return first.lower() in imperative_starters
+
+
+LLM_SYSTEM_PROMPT = """You are an assistant that extracts action items from meeting notes or text.
+An action item is a task, todo, or thing that needs to be done. It often starts with a verb and describes something that needs to be completed.
+
+Output your response as a JSON array of strings, where each string is an action item.
+If no action items are found, return an empty array: []
+
+Example:
+Input: "We need to fix the bug and also create a new feature."
+Output: ["fix the bug", "create a new feature"]
+
+Only output the JSON array, nothing else."""
+
+
+def extract_action_items_llm(text: str) -> List[str]:
+    """Extract action items from text using LLM (Ollama with llama3.1:8b)."""
+    user_prompt = f"""Extract all action items from the following text. An action item is a task that needs to be done.
+
+Text:
+{text}
+
+Output only a JSON array of action items."""
+
+    response = chat(
+        model="llama3.1:8b",
+        messages=[
+            {"role": "system", "content": LLM_SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ],
+        options={"temperature": 0.3},
+    )
+
+    content = response.message.content.strip()
+
+    # Try to parse JSON from the response
+    try:
+        # Try direct JSON parsing first
+        items = json.loads(content)
+        if isinstance(items, list):
+            return [str(item).strip() for item in items if str(item).strip()]
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: try to extract JSON from markdown code block
+    try:
+        # Look for JSON in markdown code block
+        match = re.search(r'\[.*\]', content, re.DOTALL)
+        if match:
+            items = json.loads(match.group(0))
+            if isinstance(items, list):
+                return [str(item).strip() for item in items if str(item).strip()]
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    # If all parsing fails, return empty list
+    return []
