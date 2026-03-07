@@ -9,11 +9,11 @@ Fill out all of the `TODO`s in this file.
 
 ## SUBMISSION DETAILS
 
-Name: **TODO** \
+Name: **Albert** \
 SUNet ID: **TODO** \
 Citations: **TODO**
 
-This assignment took me about **TODO** hours to do. 
+This assignment took me about **4** hours to do. 
 
 
 ## YOUR RESPONSES
@@ -76,12 +76,16 @@ frontend/index.html
 ### Exercise 5: Generate a README from the Codebase
 Prompt: 
 ```
-TODO
+analyze the current codebase and generate a well-structured `README.md` file. The README should include, at a minimum:
+- A brief overview of the project
+- How to set up and run the project
+- API endpoints and functionality
+- Instructions for running the test suite
 ``` 
 
 Generated Code Snippets:
 ```
-TODO: List all modified code files with the relevant line numbers.
+README.md # newly created
 ```
 
 
