@@ -50,7 +50,7 @@ The server runs on `http://localhost:3000` by default.
 ### MCP Client Configuration
 
 Connect to the server at:
-- SSE endpoint: `http://localhost:3000/sse`
+- SSE endpoint: `http://localhost:3000/mcp`
 - Messages endpoint: `http://localhost:3000/messages/`
 
 ### Available Tools
