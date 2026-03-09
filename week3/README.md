@@ -154,3 +154,8 @@ Run tests with:
 ```bash
 poetry run pytest week3/tests/test_server.py -v
 ```
+
+For MCP server test with MCP client
+```bash
+npx @modelcontextprotocol/inspector
+```
