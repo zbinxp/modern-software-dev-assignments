@@ -1,8 +1,11 @@
 """Tests for GitHub MCP Server."""
 
+from datetime import datetime, timezone
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
+import jwt
 
 # Import the server module functions
 from server import (
@@ -12,6 +15,9 @@ from server import (
     get_repo_info,
     list_issues,
     search_repositories,
+    generate_token,
+    API_KEY,
+    auth,
 )
 
 
@@ -225,3 +231,66 @@ class TestSearchRepositories:
         """Test missing query."""
         with pytest.raises(ValueError):
             await search_repositories("")
+
+
+class TestJWTAuthentication:
+    """Tests for JWT token authentication."""
+
+    def test_generate_token(self):
+        """Test JWT token generation."""
+        from server import generate_token, API_KEY
+        token = generate_token("testuser")
+        assert token is not None
+        assert isinstance(token, str)
+        # Token should be a valid JWT (3 parts separated by dots)
+        assert len(token.split(".")) == 3
+
+    def test_generate_token_default_user(self):
+        """Test JWT token generation with default user."""
+        from server import generate_token
+        token = generate_token()
+        assert token is not None
+        assert isinstance(token, str)
+
+    def test_jwt_verifier_initialization(self):
+        """Test JWTVerifier is properly initialized."""
+        from server import auth, API_KEY
+        # Verify auth object exists and has expected attributes
+        assert auth is not None
+
+    def test_token_contains_expected_claims(self):
+        """Test JWT token contains expected claims."""
+        import jwt as pyjwt
+        from server import generate_token, API_KEY
+        from datetime import datetime, timezone
+
+        token = generate_token("testuser")
+        # Decode without verification for testing
+        decoded = pyjwt.decode(token, options={"verify_signature": False})
+
+        assert decoded["sub"] == "testuser"
+        assert decoded["iss"] == "mcp-demo"
+        assert decoded["aud"] == "mcp-client"
+        assert "exp" in decoded
+        assert "iat" in decoded
+
+    def test_token_expiration(self):
+        """Test JWT token has proper expiration."""
+        import jwt as pyjwt
+        from server import generate_token, API_KEY
+
+        token = generate_token("testuser")
+        decoded = pyjwt.decode(token, options={"verify_signature": False})
+
+        # Token should expire in approximately 1 hour
+        exp_time = datetime.fromtimestamp(decoded["exp"], tz=timezone.utc)
+        iat_time = datetime.fromtimestamp(decoded["iat"], tz=timezone.utc)
+        # Allow some tolerance (59-61 minutes)
+        diff_minutes = (exp_time - iat_time).total_seconds() / 60
+        assert 59 <= diff_minutes <= 61
+
+    def test_api_key_configuration(self):
+        """Test API_KEY is configured."""
+        from server import API_KEY
+        assert API_KEY is not None
+        assert len(API_KEY) > 0

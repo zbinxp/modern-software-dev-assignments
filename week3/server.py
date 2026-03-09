@@ -1,24 +1,25 @@
-"""GitHub MCP Server - Using FastMCP for simplicity."""
+"""GitHub MCP Server - Using FastMCP."""
 
 import os
 import asyncio
 from typing import Annotated
+from datetime import datetime, timedelta, timezone
+import jwt
 
 import httpx
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.jwt import JWTVerifier
 
 
 # Configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 PORT = int(os.getenv("PORT", "3000"))
 GITHUB_API_BASE = "https://api.github.com"
+API_KEY = os.getenv("MCP_API_KEY", "default_api_key_change_in_production")
 
 # Rate limit tracking
 rate_limit_remaining: int = 60
 rate_limit_reset: float = 0
-
-# Create FastMCP server
-mcp = FastMCP("github-mcp-server")
 
 
 def get_headers() -> dict:
@@ -103,6 +104,28 @@ async def make_request(
             raise Exception(f"Request failed: {str(e)}")
 
     raise Exception(f"Request failed after {retries} retries: {last_error}")
+
+auth = JWTVerifier(
+    public_key=API_KEY,
+    issuer="mcp-demo",
+    audience="mcp-client",
+    algorithm="HS256",
+)
+# Create FastMCP server
+mcp = FastMCP("github-mcp-server", auth=auth)
+
+
+def generate_token(username: str = "test_user") -> str:
+    """Generate a JWT token for testing purposes."""
+    payload = {
+        "sub": username,
+        "iss": "mcp-demo",
+        "aud": "mcp-client",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, API_KEY, algorithm="HS256")
+
 
 
 @mcp.tool()
@@ -213,5 +236,13 @@ async def search_repositories(
 
 
 if __name__ == "__main__":
-    # Run as HTTP server
+    """Run the MCP server.
+
+    Supports HTTP transport for remote access.
+    For authentication, use a reverse proxy (nginx, Caddy).
+    """
+    print(f"Starting server on port {PORT}")
+    # Print a test token when the module is loaded
+
+    print(f"\n🔑 Test token: {generate_token()}\n")
     mcp.run(transport="http", port=PORT)

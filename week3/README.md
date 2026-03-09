@@ -127,6 +127,21 @@ The server tracks rate limits and returns warnings when approaching limits.
 - Empty results: Returns empty array with info message
 - Rate limited: Returns warning with reset time
 
+## Authentication
+
+### GitHub Token (for GitHub API)
+- Set via `GITHUB_TOKEN` environment variable
+- Used to authenticate with GitHub API for higher rate limits (5000/hour)
+- Passed as Bearer token to GitHub API requests
+
+Example:
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+poetry run python week3/server.py
+```
+
+For server-level authentication, use a reverse proxy (nginx, Caddy).
+
 ## Security
 
 - Tokens stored in environment, never logged
