@@ -6,11 +6,13 @@
 - Uses SQLAlchemy ORM with dependency injection for database sessions
 
 ## Running Tests
+change to week4 directory
 ```bash
 PYTHONPATH=. poetry run pytest -q backend/tests
 ```
 
 ## Running Coverage
+change to week4 directory
 ```bash
 PYTHONPATH=. poetry run coverage run -m pytest -q backend/tests
 ```
