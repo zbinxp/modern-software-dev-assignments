@@ -1,12 +1,11 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Note
-from ..schemas import NoteCreate, NoteRead
+from ..models import Note, Tag
+from ..schemas import NoteCreate, NoteRead, TagRead
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -22,12 +21,18 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
     note = Note(title=payload.title, content=payload.content)
     db.add(note)
     db.flush()
+
+    # Add tags if tag_ids provided
+    if payload.tag_ids:
+        tags = db.execute(select(Tag).where(Tag.id.in_(payload.tag_ids))).scalars().all()
+        note.tags.extend(tags)
+
     db.refresh(note)
     return NoteRead.model_validate(note)
 
 
 @router.get("/search/", response_model=list[NoteRead])
-def search_notes(q: Optional[str] = None, db: Session = Depends(get_db)) -> list[NoteRead]:
+def search_notes(q: str | None = None, db: Session = Depends(get_db)) -> list[NoteRead]:
     if not q:
         rows = db.execute(select(Note)).scalars().all()
     else:
@@ -37,6 +42,12 @@ def search_notes(q: Optional[str] = None, db: Session = Depends(get_db)) -> list
             .all()
         )
     return [NoteRead.model_validate(row) for row in rows]
+
+
+@router.get("/tags/", response_model=list[TagRead])
+def list_tags(db: Session = Depends(get_db)) -> list[TagRead]:
+    rows = db.execute(select(Tag)).scalars().all()
+    return [TagRead.model_validate(row) for row in rows]
 
 
 @router.get("/{note_id}", response_model=NoteRead)

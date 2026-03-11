@@ -4,13 +4,30 @@ async function fetchJSON(url, options) {
   return res.json();
 }
 
+async function loadTags() {
+  const container = document.getElementById('tag-checkboxes');
+  container.innerHTML = '';
+  const tags = await fetchJSON('/notes/tags/');
+  for (const t of tags) {
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = 'tag';
+    checkbox.value = t.id;
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(` ${t.name}`));
+    container.appendChild(label);
+  }
+}
+
 async function loadNotes() {
   const list = document.getElementById('notes');
   list.innerHTML = '';
   const notes = await fetchJSON('/notes/');
   for (const n of notes) {
     const li = document.createElement('li');
-    li.textContent = `${n.title}: ${n.content}`;
+    const tagsText = n.tags.length > 0 ? ` [${n.tags.map(t => t.name).join(', ')}]` : '';
+    li.textContent = `${n.title}: ${n.content}${tagsText}`;
     list.appendChild(li);
   }
 }
@@ -36,14 +53,19 @@ async function loadActions() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  loadTags();
+
   document.getElementById('note-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('note-title').value;
     const content = document.getElementById('note-content').value;
+    const checkboxes = document.querySelectorAll('input[name="tag"]:checked');
+    const tag_ids = Array.from(checkboxes).map(c => parseInt(c.value));
+
     await fetchJSON('/notes/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title, content, tag_ids }),
     });
     e.target.reset();
     loadNotes();
