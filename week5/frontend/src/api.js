@@ -12,6 +12,10 @@ async function fetchJSON(url, options = {}) {
     const errorText = await res.text();
     throw new Error(errorText || `HTTP error ${res.status}`);
   }
+  // Handle 204 No Content responses
+  if (res.status === 204) {
+    return null;
+  }
   return res.json();
 }
 
@@ -76,4 +80,39 @@ export async function bulkCompleteActionItems(ids) {
     method: 'POST',
     body: JSON.stringify({ ids }),
   });
+}
+
+// Tags API
+export async function getTags() {
+  return fetchJSON('/tags/');
+}
+
+export async function createTag(name) {
+  return fetchJSON('/tags/', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteTag(id) {
+  return fetchJSON(`/tags/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function addTagToNote(noteId, tagIds) {
+  return fetchJSON(`/notes/${noteId}/tags`, {
+    method: 'POST',
+    body: JSON.stringify({ tag_ids: tagIds }),
+  });
+}
+
+export async function removeTagFromNote(noteId, tagId) {
+  return fetchJSON(`/notes/${noteId}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getNotesByTag(tagId) {
+  return fetchJSON(`/notes/by-tag/${tagId}`);
 }

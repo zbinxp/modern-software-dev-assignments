@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { getNotes, createNote, deleteNote, searchNotes } from '../api';
+import { getNotes, createNote, deleteNote, searchNotes, getTags, createTag, addTagToNote, removeTagFromNote, getNotesByTag } from '../api';
+import TagFilter from './TagFilter';
 
 function NotesList() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tags, setTags] = useState([]);
+  const [selectedTagId, setSelectedTagId] = useState(null);
+  const [editingTagsNoteId, setEditingTagsNoteId] = useState(null);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -17,13 +21,30 @@ function NotesList() {
   const [sortBy, setSortBy] = useState('created_desc');
   const [totalNotes, setTotalNotes] = useState(0);
 
+  const fetchTags = async () => {
+    try {
+      const data = await getTags();
+      setTags(data);
+    } catch (err) {
+      console.error('Failed to load tags:', err);
+    }
+  };
+
   const fetchNotes = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await searchNotes(searchQuery, currentPage, pageSize, sortBy);
-      setNotes(data.items);
-      setTotalNotes(data.total);
+
+      let data;
+      if (selectedTagId) {
+        data = await getNotesByTag(selectedTagId);
+        setNotes(data);
+        setTotalNotes(data.length);
+      } else {
+        data = await searchNotes(searchQuery, currentPage, pageSize, sortBy);
+        setNotes(data.items);
+        setTotalNotes(data.total);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -32,8 +53,12 @@ function NotesList() {
   };
 
   useEffect(() => {
+    fetchTags();
+  }, []);
+
+  useEffect(() => {
     fetchNotes();
-  }, [currentPage, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPage, sortBy, selectedTagId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also re-fetch when searchQuery changes (debounced via submit)
   useEffect(() => {
@@ -46,10 +71,61 @@ function NotesList() {
 
     try {
       setError(null);
-      await createNote({ title, content });
+
+      // Parse hashtags from content before removing them
+      const hashtagRegex = /#(\w+)/g;
+      const matches = content.match(hashtagRegex);
+
+      // Remove hashtags from content
+      const contentWithoutHashtags = content.replace(hashtagRegex, '').trim();
+
+      const newNote = await createNote({ title: title, content: contentWithoutHashtags });
+      if (matches) {
+        const uniqueTagNames = [...new Set(matches.map(tag => tag.slice(1).toLowerCase()))]; // Remove #, dedupe, lowercase
+
+        // Get all existing tags
+        let existingTags = await getTags();
+        const tagIds = [];
+
+        for (const tagName of uniqueTagNames) {
+          let existingTag = existingTags.find(t => t.name.toLowerCase() === tagName);
+          if (existingTag) {
+            tagIds.push(existingTag.id);
+          } else {
+            // Create new tag - use lowercase for consistency
+            try {
+              const newTag = await createTag(tagName);
+              tagIds.push(newTag.id);
+              existingTags.push(newTag); // Add to local cache
+            } catch (tagErr) {
+              // Tag might already exist (race condition) - fetch it again
+              try {
+                existingTags = await getTags();
+                existingTag = existingTags.find(t => t.name.toLowerCase() === tagName);
+                if (existingTag) {
+                  tagIds.push(existingTag.id);
+                }
+              } catch (fetchErr) {
+                // Ignore fetch errors
+              }
+            }
+          }
+        }
+
+        // Attach all tags to the note
+        if (tagIds.length > 0) {
+          try {
+            await addTagToNote(newNote.id, tagIds);
+          } catch (attachErr) {
+            // Ignore attach errors
+          }
+        }
+      }
+
       setTitle('');
       setContent('');
       fetchNotes();
+      fetchTags(); // Refresh tags list
     } catch (err) {
       setError(err.message);
     }
@@ -87,6 +163,32 @@ function NotesList() {
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleTagSelect = (tagId) => {
+    setSelectedTagId(tagId);
+    setCurrentPage(1);
+  };
+
+  const handleEditTags = async (noteId, currentTagIds) => {
+    const allTagIds = tags.map(t => t.id);
+    const newTagIds = allTagIds.filter(id => !currentTagIds.includes(id));
+
+    if (newTagIds.length > 0) {
+      // Add the first available tag to demonstrate functionality
+      await addTagToNote(noteId, [...currentTagIds, newTagIds[0]]);
+      fetchNotes();
+    }
+    setEditingTagsNoteId(null);
+  };
+
+  const handleRemoveTag = async (noteId, tagId) => {
+    try {
+      await removeTagFromNote(noteId, tagId);
+      fetchNotes();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -136,6 +238,9 @@ function NotesList() {
         </select>
       </div>
 
+      {/* Tag Filter */}
+      <TagFilter selectedTagId={selectedTagId} onTagSelect={handleTagSelect} />
+
       {/* Result count */}
       <p>Showing {notes.length} of {totalNotes} notes</p>
 
@@ -144,8 +249,44 @@ function NotesList() {
       ) : (
         <ul>
           {notes.map((note) => (
-            <li key={note.id}>
-              {note.title}: {note.content}
+            <li key={note.id} style={{ marginBottom: '1rem' }}>
+              <strong>{note.title}</strong>: {note.content}
+              {/* Tags display */}
+              {note.tags && note.tags.length > 0 && (
+                <div style={{ marginTop: '0.25rem' }}>
+                  {note.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '0.125rem 0.5rem',
+                        backgroundColor: '#e0e7ff',
+                        borderRadius: '1rem',
+                        fontSize: '0.75rem',
+                        marginRight: '0.25rem',
+                      }}
+                    >
+                      {tag.name}
+                      <button
+                        onClick={() => handleRemoveTag(note.id, tag.id)}
+                        style={{
+                          marginLeft: '0.25rem',
+                          padding: '0 0.25rem',
+                          fontSize: '0.625rem',
+                          background: 'none',
+                          border: 'none',
+                          color: '#666',
+                          cursor: 'pointer',
+                        }}
+                        title="Remove tag"
+                      >
+                        x
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
               <button
                 onClick={() => handleDelete(note.id)}
                 style={{ marginLeft: '0.5rem' }}
