@@ -39,3 +39,33 @@ class ActionItemRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Tag schemas
+class TagCreate(BaseModel):
+    name: str
+
+
+class TagRead(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class NoteReadWithTags(BaseModel):
+    id: int
+    title: str
+    content: str
+    tags: list[TagRead] = []
+
+    class Config:
+        from_attributes = True
+
+
+class NoteSearchResponseWithTags(BaseModel):
+    items: list[NoteReadWithTags]
+    total: int
+    page: int
+    page_size: int

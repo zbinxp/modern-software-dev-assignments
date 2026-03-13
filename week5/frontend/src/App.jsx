@@ -1,10 +1,16 @@
 import NotesList from './components/NotesList';
 import ActionItemsList from './components/ActionItemsList';
+import TagsList from './components/TagsList';
 
 function App() {
   return (
     <main>
       <h1>Modern Software Dev Starter</h1>
+
+      <section>
+        <h2>Tags</h2>
+        <TagsList />
+      </section>
 
       <section>
         <h2>Notes</h2>

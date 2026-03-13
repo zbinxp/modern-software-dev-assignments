@@ -2,14 +2,71 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Note
-from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteUpdate
+from ..models import Note, Tag
+from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteSearchResponseWithTags, NoteReadWithTags, TagRead, NoteUpdate
 
 router = APIRouter(prefix="/notes", tags=["notes"])
+
+
+# Request model for attaching tags
+class TagAttachRequest(BaseModel):
+    tag_ids: list[int]
+
+
+# Note-Tag relationship endpoints (under /notes prefix)
+
+@router.post("/{note_id}/tags", response_model=NoteReadWithTags)
+def attach_tags_to_note(note_id: int, payload: TagAttachRequest, db: Session = Depends(get_db)) -> NoteReadWithTags:
+    """Attach tags to a note."""
+    note = db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Fetch all tags by IDs
+    tags = db.query(Tag).filter(Tag.id.in_(payload.tag_ids)).all()
+    if len(tags) != len(payload.tag_ids):
+        raise HTTPException(status_code=404, detail="One or more tags not found")
+
+    # Replace tags
+    note.tags = tags
+    db.flush()
+    db.refresh(note)
+    return NoteReadWithTags.model_validate(note)
+
+
+@router.delete("/{note_id}/tags/{tag_id}", status_code=204)
+def detach_tag_from_note(note_id: int, tag_id: int, db: Session = Depends(get_db)) -> None:
+    """Detach a tag from a note."""
+    note = db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    tag = db.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    if tag in note.tags:
+        note.tags.remove(tag)
+    db.flush()
+
+
+@router.get("/by-tag/{tag_id}", response_model=list[NoteReadWithTags])
+def get_notes_by_tag(tag_id: int, db: Session = Depends(get_db)) -> list[NoteReadWithTags]:
+    """Get all notes with a specific tag."""
+    tag = db.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    notes = db.execute(
+        select(Note).where(Note.tags.any(Tag.id == tag_id))
+    ).scalars().all()
+
+    return [NoteReadWithTags.model_validate(note) for note in notes]
 
 
 # Redirect /notes to /notes/ for consistency
@@ -18,10 +75,10 @@ def list_notes_redirect():
     return RedirectResponse(url="/notes/")
 
 
-@router.get("/", response_model=list[NoteRead])
-def list_notes(db: Session = Depends(get_db)) -> list[NoteRead]:
+@router.get("/", response_model=list[NoteReadWithTags])
+def list_notes(db: Session = Depends(get_db)) -> list[NoteReadWithTags]:
     rows = db.execute(select(Note)).scalars().all()
-    return [NoteRead.model_validate(row) for row in rows]
+    return [NoteReadWithTags.model_validate(row) for row in rows]
 
 
 @router.post("/", response_model=NoteRead, status_code=201)
@@ -38,14 +95,14 @@ def search_notes_redirect():
     return RedirectResponse(url="/notes/search/")
 
 
-@router.get("/search/", response_model=NoteSearchResponse)
+@router.get("/search/", response_model=NoteSearchResponseWithTags)
 def search_notes(
     q: Optional[str] = None,
     page: int = 1,
     page_size: int = 10,
     sort: str = "created_desc",
     db: Session = Depends(get_db)
-) -> NoteSearchResponse:
+) -> NoteSearchResponseWithTags:
     # Cap page_size at 100
     page_size = min(page_size, 100)
 
@@ -82,8 +139,8 @@ def search_notes(
     # Execute query
     rows = db.execute(query).scalars().all()
 
-    return NoteSearchResponse(
-        items=[NoteRead.model_validate(row) for row in rows],
+    return NoteSearchResponseWithTags(
+        items=[NoteReadWithTags.model_validate(row) for row in rows],
         total=total,
         page=page,
         page_size=page_size
