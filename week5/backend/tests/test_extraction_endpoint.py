@@ -10,16 +10,18 @@ def test_extract_endpoint_returns_data(client):
         "content": "#tag1\n- [ ] Task 1\n- [ ] Task 2\nTODO: Legacy item\nShip it!"
     })
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Extract without applying
     response = client.post(f"/notes/{note_id}/extract", json={"apply": False})
     assert response.status_code == 200
     data = response.json()
-    assert data["hashtags"] == ["tag1"]
-    assert data["action_items"] == ["Task 1", "Task 2"]
-    assert "TODO: Legacy item" in data["legacy_items"]
-    assert "Ship it!" in data["legacy_items"]
+    assert data["ok"] is True
+    result = data["data"]
+    assert result["hashtags"] == ["tag1"]
+    assert result["action_items"] == ["Task 1", "Task 2"]
+    assert "TODO: Legacy item" in result["legacy_items"]
+    assert "Ship it!" in result["legacy_items"]
 
 
 def test_extract_endpoint_with_apply_creates_tags(client):
@@ -30,7 +32,7 @@ def test_extract_endpoint_with_apply_creates_tags(client):
         "content": "#mytag\n- [ ] Do something"
     })
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Extract with apply
     response = client.post(f"/notes/{note_id}/extract", json={"apply": True})
@@ -39,7 +41,7 @@ def test_extract_endpoint_with_apply_creates_tags(client):
     # Get the note with tags
     r = client.get(f"/notes/{note_id}")
     assert r.status_code == 200
-    note_data = r.json()
+    note_data = r.json()["data"]
     assert len(note_data["tags"]) == 1
     assert note_data["tags"][0]["name"] == "mytag"
 
@@ -52,7 +54,7 @@ def test_extract_endpoint_with_apply_creates_action_items(client):
         "content": "- [ ] My task"
     })
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Extract with apply
     response = client.post(f"/notes/{note_id}/extract", json={"apply": True})
@@ -64,14 +66,16 @@ def test_extract_endpoint_with_apply_creates_action_items(client):
     response = client.post(f"/notes/{note_id}/extract", json={"apply": False})
     # This doesn't verify items were created in DB, but verifies extraction works
     assert response.status_code == 200
-    assert response.json()["action_items"] == ["My task"]
+    assert response.json()["data"]["action_items"] == ["My task"]
 
 
 def test_extract_endpoint_404_for_nonexistent_note(client):
     """Test 404 is returned for non-existent note."""
     response = client.post("/notes/99999/extract", json={"apply": False})
     assert response.status_code == 404
-    assert response.json()["detail"] == "Note not found"
+    data = response.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
 
 
 def test_extract_endpoint_idempotent(client):
@@ -82,7 +86,7 @@ def test_extract_endpoint_idempotent(client):
         "content": "#idempotent\n- [ ] Task"
     })
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Extract with apply twice
     client.post(f"/notes/{note_id}/extract", json={"apply": True})
@@ -91,7 +95,7 @@ def test_extract_endpoint_idempotent(client):
     # Get the note - tags should only be 1
     r = client.get(f"/notes/{note_id}")
     assert r.status_code == 200
-    assert len(r.json()["tags"]) == 1
+    assert len(r.json()["data"]["tags"]) == 1
 
 
 def test_extract_endpoint_apply_true_no_extractions(client):
@@ -102,12 +106,12 @@ def test_extract_endpoint_apply_true_no_extractions(client):
         "content": "Just plain text"
     })
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Extract with apply
     response = client.post(f"/notes/{note_id}/extract", json={"apply": True})
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["hashtags"] == []
     assert data["action_items"] == []
     assert data["legacy_items"] == []

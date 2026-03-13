@@ -3,26 +3,31 @@ def test_create_and_list_notes(client):
     r = client.post("/notes/", json=payload)
     assert r.status_code == 201, r.text
     data = r.json()
-    assert data["title"] == "Test"
+    assert data["ok"] is True
+    assert data["data"]["title"] == "Test"
 
     r = client.get("/notes/")
     assert r.status_code == 200
     items = r.json()
-    assert len(items) >= 1
+    assert items["ok"] is True
+    assert len(items["data"]) >= 1
 
     r = client.get("/notes/search/")
     assert r.status_code == 200
     data = r.json()
-    assert "items" in data
-    assert "total" in data
-    assert "page" in data
-    assert "page_size" in data
+    assert data["ok"] is True
+    assert "data" in data
+    assert "items" in data["data"]
+    assert "total" in data["data"]
+    assert "page" in data["data"]
+    assert "page_size" in data["data"]
 
     r = client.get("/notes/search/", params={"q": "Hello"})
     assert r.status_code == 200
     data = r.json()
-    assert "items" in data
-    assert len(data["items"]) >= 1
+    assert data["ok"] is True
+    assert "items" in data["data"]
+    assert len(data["data"]["items"]) >= 1
 
 
 def test_notes_without_trailing_slash_returns_json(client):
@@ -32,8 +37,11 @@ def test_notes_without_trailing_slash_returns_json(client):
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     assert r.headers["content-type"].startswith("application/json"), \
         f"Expected JSON, got {r.headers.get('content-type')}: {r.text[:100]}"
-    # Should be a list of notes
-    assert isinstance(r.json(), list), "Expected JSON array"
+    # Should be an envelope with data list
+    data = r.json()
+    assert data["ok"] is True
+    assert "data" in data
+    assert isinstance(data["data"], list), "Expected JSON array in data"
 
 
 def test_notes_search_without_trailing_slash(client):
@@ -43,8 +51,10 @@ def test_notes_search_without_trailing_slash(client):
     assert r.headers["content-type"].startswith("application/json"), \
         f"Expected JSON, got {r.headers.get('content-type')}"
     data = r.json()
-    assert "items" in data
-    assert "total" in data
+    assert data["ok"] is True
+    assert "data" in data
+    assert "items" in data["data"]
+    assert "total" in data["data"]
 
 
 def test_search_pagination_returns_correct_subset(client):
@@ -57,17 +67,17 @@ def test_search_pagination_returns_correct_subset(client):
     r = client.get("/notes/search/", params={"page": 1, "page_size": 5})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) == 5
-    assert data["total"] == 15
-    assert data["page"] == 1
-    assert data["page_size"] == 5
+    assert len(data["data"]["items"]) == 5
+    assert data["data"]["total"] == 15
+    assert data["data"]["page"] == 1
+    assert data["data"]["page_size"] == 5
 
     # Request second page
     r = client.get("/notes/search/", params={"page": 2, "page_size": 5})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) == 5
-    assert data["page"] == 2
+    assert len(data["data"]["items"]) == 5
+    assert data["data"]["page"] == 2
 
 
 def test_search_pagination_empty_last_page(client):
@@ -79,8 +89,8 @@ def test_search_pagination_empty_last_page(client):
     r = client.get("/notes/search/", params={"page": 100, "page_size": 10})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) == 0
-    assert data["total"] == 1  # Still have 1 total
+    assert len(data["data"]["items"]) == 0
+    assert data["data"]["total"] == 1  # Still have 1 total
 
 
 def test_search_pagination_large_page_size(client):
@@ -93,8 +103,8 @@ def test_search_pagination_large_page_size(client):
     r = client.get("/notes/search/", params={"page": 1, "page_size": 100})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) == 3
-    assert data["total"] == 3
+    assert len(data["data"]["items"]) == 3
+    assert data["data"]["total"] == 3
 
 
 def test_search_with_query_returns_matching_notes(client):
@@ -105,8 +115,8 @@ def test_search_with_query_returns_matching_notes(client):
     r = client.get("/notes/search/", params={"q": "Python"})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) >= 1
-    assert any("Python" in note["title"] or "Python" in note["content"] for note in data["items"])
+    assert len(data["data"]["items"]) >= 1
+    assert any("Python" in note["title"] or "Python" in note["content"] for note in data["data"]["items"])
 
 
 def test_search_case_insensitive_title(client):
@@ -117,7 +127,7 @@ def test_search_case_insensitive_title(client):
     r = client.get("/notes/search/", params={"q": "python"})
     assert r.status_code == 200
     data = r.json()
-    assert data["total"] == 2
+    assert data["data"]["total"] == 2
 
 
 def test_search_case_insensitive_content(client):
@@ -128,7 +138,7 @@ def test_search_case_insensitive_content(client):
     r = client.get("/notes/search/", params={"q": "hello"})
     assert r.status_code == 200
     data = r.json()
-    assert data["total"] == 2
+    assert data["data"]["total"] == 2
 
 
 def test_search_no_matches_returns_empty(client):
@@ -136,8 +146,8 @@ def test_search_no_matches_returns_empty(client):
     r = client.get("/notes/search/", params={"q": "nonexistentquery123"})
     assert r.status_code == 200
     data = r.json()
-    assert len(data["items"]) == 0
-    assert data["total"] == 0
+    assert len(data["data"]["items"]) == 0
+    assert data["data"]["total"] == 0
 
 
 def test_search_sort_by_created_desc(client):
@@ -151,8 +161,8 @@ def test_search_sort_by_created_desc(client):
     assert r.status_code == 200
     data = r.json()
     # Most recent first (highest ID)
-    assert data["items"][0]["title"] == "Third"
-    assert data["items"][2]["title"] == "First"
+    assert data["data"]["items"][0]["title"] == "Third"
+    assert data["data"]["items"][2]["title"] == "First"
 
 
 def test_search_sort_by_created_asc(client):
@@ -165,8 +175,8 @@ def test_search_sort_by_created_asc(client):
     assert r.status_code == 200
     data = r.json()
     # Oldest first (lowest ID)
-    assert data["items"][0]["title"] == "First"
-    assert data["items"][2]["title"] == "Third"
+    assert data["data"]["items"][0]["title"] == "First"
+    assert data["data"]["items"][2]["title"] == "Third"
 
 
 def test_search_sort_by_title_asc(client):
@@ -178,9 +188,9 @@ def test_search_sort_by_title_asc(client):
     r = client.get("/notes/search/", params={"sort": "title_asc"})
     assert r.status_code == 200
     data = r.json()
-    assert data["items"][0]["title"] == "Apple"
-    assert data["items"][1]["title"] == "Mango"
-    assert data["items"][2]["title"] == "Zebra"
+    assert data["data"]["items"][0]["title"] == "Apple"
+    assert data["data"]["items"][1]["title"] == "Mango"
+    assert data["data"]["items"][2]["title"] == "Zebra"
 
 
 def test_search_sort_by_title_desc(client):
@@ -192,9 +202,9 @@ def test_search_sort_by_title_desc(client):
     r = client.get("/notes/search/", params={"sort": "title_desc"})
     assert r.status_code == 200
     data = r.json()
-    assert data["items"][0]["title"] == "Zebra"
-    assert data["items"][1]["title"] == "Mango"
-    assert data["items"][2]["title"] == "Apple"
+    assert data["data"]["items"][0]["title"] == "Zebra"
+    assert data["data"]["items"][1]["title"] == "Mango"
+    assert data["data"]["items"][2]["title"] == "Apple"
 
 
 def test_search_invalid_sort_defaults_to_created_desc(client):
@@ -206,7 +216,7 @@ def test_search_invalid_sort_defaults_to_created_desc(client):
     assert r.status_code == 200
     data = r.json()
     # Should not error, should return results
-    assert len(data["items"]) >= 2
+    assert len(data["data"]["items"]) >= 2
 
 
 def test_search_invalid_page_defaults_to_1(client):
@@ -216,12 +226,12 @@ def test_search_invalid_page_defaults_to_1(client):
     r = client.get("/notes/search/", params={"page": 0})
     assert r.status_code == 200
     data = r.json()
-    assert data["page"] == 1
+    assert data["data"]["page"] == 1
 
     r = client.get("/notes/search/", params={"page": -1})
     assert r.status_code == 200
     data = r.json()
-    assert data["page"] == 1
+    assert data["data"]["page"] == 1
 
 
 def test_search_page_size_capped_at_100(client):
@@ -231,7 +241,7 @@ def test_search_page_size_capped_at_100(client):
     r = client.get("/notes/search/", params={"page_size": 500})
     assert r.status_code == 200
     data = r.json()
-    assert data["page_size"] == 100
+    assert data["data"]["page_size"] == 100
 
 
 def test_update_note_success(client):
@@ -239,15 +249,16 @@ def test_update_note_success(client):
     # Create a note first
     r = client.post("/notes/", json={"title": "Original", "content": "Original content"})
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Update the note
     r = client.put(f"/notes/{note_id}", json={"title": "Updated", "content": "Updated content"})
     assert r.status_code == 200
     data = r.json()
-    assert data["title"] == "Updated"
-    assert data["content"] == "Updated content"
-    assert data["id"] == note_id
+    assert data["ok"] is True
+    assert data["data"]["title"] == "Updated"
+    assert data["data"]["content"] == "Updated content"
+    assert data["data"]["id"] == note_id
 
 
 def test_update_note_validation_error_title_too_short(client):
@@ -255,11 +266,14 @@ def test_update_note_validation_error_title_too_short(client):
     # Create a note first
     r = client.post("/notes/", json={"title": "Original", "content": "Original content"})
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Try to update with empty title
     r = client.put(f"/notes/{note_id}", json={"title": "", "content": "Content"})
     assert r.status_code == 422
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_update_note_validation_error_title_too_long(client):
@@ -267,12 +281,15 @@ def test_update_note_validation_error_title_too_long(client):
     # Create a note first
     r = client.post("/notes/", json={"title": "Original", "content": "Original content"})
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Try to update with title > 200 chars
     long_title = "x" * 201
     r = client.put(f"/notes/{note_id}", json={"title": long_title, "content": "Content"})
     assert r.status_code == 422
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_update_note_validation_error_content_empty(client):
@@ -280,17 +297,23 @@ def test_update_note_validation_error_content_empty(client):
     # Create a note first
     r = client.post("/notes/", json={"title": "Original", "content": "Original content"})
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Try to update with empty content
     r = client.put(f"/notes/{note_id}", json={"title": "Title", "content": ""})
     assert r.status_code == 422
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_update_note_not_found(client):
     """Test update returns 404 for non-existent note."""
     r = client.put("/notes/99999", json={"title": "Updated", "content": "Content"})
     assert r.status_code == 404
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
 
 
 def test_delete_note_success(client):
@@ -298,7 +321,7 @@ def test_delete_note_success(client):
     # Create a note first
     r = client.post("/notes/", json={"title": "To Delete", "content": "Content"})
     assert r.status_code == 201
-    note_id = r.json()["id"]
+    note_id = r.json()["data"]["id"]
 
     # Delete the note
     r = client.delete(f"/notes/{note_id}")
@@ -313,3 +336,73 @@ def test_delete_note_not_found(client):
     """Test delete returns 404 for non-existent note."""
     r = client.delete("/notes/99999")
     assert r.status_code == 404
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+# Envelope format tests
+def test_create_note_returns_envelope(client):
+    """Test create note returns envelope format."""
+    payload = {"title": "Test", "content": "Hello world"}
+    r = client.post("/notes/", json=payload)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["ok"] is True
+    assert "data" in data
+    assert data["data"]["title"] == "Test"
+
+
+def test_get_nonexistent_note_returns_error_envelope(client):
+    """Test get nonexistent note returns error envelope."""
+    r = client.get("/notes/99999")
+    assert r.status_code == 404
+    data = r.json()
+    assert data["ok"] is False
+    assert "error" in data
+    assert data["error"]["code"] == "NOT_FOUND"
+
+
+def test_create_note_with_empty_title_returns_validation_error(client):
+    """Test create note with empty title returns validation error."""
+    payload = {"title": "", "content": "Hello world"}
+    r = client.post("/notes/", json=payload)
+    assert r.status_code == 422
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_create_note_with_empty_content_returns_validation_error(client):
+    """Test create note with empty content returns validation error."""
+    payload = {"title": "Title", "content": ""}
+    r = client.post("/notes/", json=payload)
+    assert r.status_code == 422
+    data = r.json()
+    assert data["ok"] is False
+    assert data["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_get_note_returns_envelope(client):
+    """Test get note returns envelope format."""
+    # Create a note first
+    r = client.post("/notes/", json={"title": "Test", "content": "Content"})
+    assert r.status_code == 201
+    note_id = r.json()["data"]["id"]
+
+    # Get the note
+    r = client.get(f"/notes/{note_id}")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["data"]["title"] == "Test"
+
+
+def test_list_notes_returns_envelope(client):
+    """Test list notes returns envelope format."""
+    r = client.get("/notes/")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert "data" in data
+    assert isinstance(data["data"], list)

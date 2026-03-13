@@ -8,15 +8,30 @@ async function fetchJSON(url, options = {}) {
       ...options.headers,
     },
   });
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(errorText || `HTTP error ${res.status}`);
-  }
   // Handle 204 No Content responses
   if (res.status === 204) {
     return null;
   }
-  return res.json();
+
+  const data = await res.json();
+
+  // Handle envelope format
+  if (data !== null && typeof data === 'object' && 'ok' in data) {
+    if (data.ok === true) {
+      return data.data;
+    } else {
+      // Error response - throw with the error message
+      const errorMessage = data.error?.message || `HTTP error ${res.status}`;
+      throw new Error(errorMessage);
+    }
+  }
+
+  // Handle non-envelope error responses
+  if (!res.ok) {
+    throw new Error(typeof data === 'string' ? data : `HTTP error ${res.status}`);
+  }
+
+  return data;
 }
 
 // Notes API

@@ -6,7 +6,7 @@ def sample_note(client):
     """Create a sample note for testing."""
     response = client.post("/notes/", json={"title": "Test Note", "content": "Test content"})
     assert response.status_code == 201
-    return response.json()
+    return response.json()["data"]
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def sample_tags(client):
     tag1 = client.post("/tags/", json={"name": "work"})
     tag2 = client.post("/tags/", json={"name": "personal"})
     tag3 = client.post("/tags/", json={"name": "urgent"})
-    return [tag1.json(), tag2.json(), tag3.json()]
+    return [tag1.json()["data"], tag2.json()["data"], tag3.json()["data"]]
 
 
 class TestTags:
@@ -25,33 +25,40 @@ class TestTags:
         """Test listing tags when none exist."""
         response = client.get("/tags/")
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["ok"] is True
+        assert data["data"] == []
 
     def test_create_tag(self, client):
         """Test creating a new tag."""
         response = client.post("/tags/", json={"name": "important"})
         assert response.status_code == 201
         data = response.json()
-        assert data["name"] == "important"
-        assert "id" in data
+        assert data["ok"] is True
+        assert data["data"]["name"] == "important"
+        assert "id" in data["data"]
 
     def test_create_tag_duplicate(self, client):
         """Test creating a duplicate tag fails."""
         client.post("/tags/", json={"name": "duplicate"})
         response = client.post("/tags/", json={"name": "duplicate"})
         assert response.status_code == 400
-        assert "already exists" in response.json()["detail"]
+        data = response.json()
+        assert data["ok"] is False
+        assert "already exists" in data["error"]["message"]
 
     def test_list_tags(self, client, sample_tags):
         """Test listing all tags."""
         response = client.get("/tags/")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 3
+        assert data["ok"] is True
+        tags = data["data"]
+        assert len(tags) == 3
         # Should be ordered by name
-        assert data[0]["name"] == "personal"
-        assert data[1]["name"] == "urgent"
-        assert data[2]["name"] == "work"
+        assert tags[0]["name"] == "personal"
+        assert tags[1]["name"] == "urgent"
+        assert tags[2]["name"] == "work"
 
     def test_delete_tag(self, client, sample_tags):
         """Test deleting a tag."""
@@ -62,12 +69,15 @@ class TestTags:
         # Verify tag is deleted
         response = client.get("/tags/")
         data = response.json()
-        assert len(data) == 2
+        assert len(data["data"]) == 2
 
     def test_delete_nonexistent_tag(self, client):
         """Test deleting a non-existent tag fails."""
         response = client.delete("/tags/99999")
         assert response.status_code == 404
+        data = response.json()
+        assert data["ok"] is False
+        assert data["error"]["code"] == "NOT_FOUND"
 
 
 class TestNoteTags:
@@ -81,8 +91,10 @@ class TestNoteTags:
         response = client.post(f"/notes/{note_id}/tags", json={"tag_ids": tag_ids})
         assert response.status_code == 200
         data = response.json()
-        assert len(data["tags"]) == 2
-        tag_names = [t["name"] for t in data["tags"]]
+        assert data["ok"] is True
+        note_data = data["data"]
+        assert len(note_data["tags"]) == 2
+        tag_names = [t["name"] for t in note_data["tags"]]
         assert "work" in tag_names
         assert "personal" in tag_names
 
@@ -90,6 +102,9 @@ class TestNoteTags:
         """Test attaching a non-existent tag fails."""
         response = client.post(f"/notes/{sample_note['id']}/tags", json={"tag_ids": [99999]})
         assert response.status_code == 404
+        data = response.json()
+        assert data["ok"] is False
+        assert data["error"]["code"] == "NOT_FOUND"
 
     def test_detach_tag_from_note(self, client, sample_note, sample_tags):
         """Test detaching a tag from a note."""
@@ -106,7 +121,7 @@ class TestNoteTags:
         # Verify tag is detached
         response = client.get(f"/notes/{note_id}")
         data = response.json()
-        assert len(data.get("tags", [])) == 0
+        assert len(data["data"].get("tags", [])) == 0
 
     def test_get_notes_by_tag(self, client, sample_note, sample_tags):
         """Test getting notes filtered by tag."""
@@ -120,13 +135,17 @@ class TestNoteTags:
         response = client.get(f"/notes/by-tag/{tag_id}")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["id"] == note_id
+        assert data["ok"] is True
+        assert len(data["data"]) == 1
+        assert data["data"][0]["id"] == note_id
 
     def test_get_notes_by_nonexistent_tag(self, client):
         """Test getting notes by non-existent tag fails."""
         response = client.get("/notes/by-tag/99999")
         assert response.status_code == 404
+        data = response.json()
+        assert data["ok"] is False
+        assert data["error"]["code"] == "NOT_FOUND"
 
     def test_note_with_tags_search(self, client, sample_note, sample_tags):
         """Test that search returns notes with their tags."""
@@ -140,6 +159,5 @@ class TestNoteTags:
         response = client.get(f"/notes/search/?q=Test")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["items"]) == 1
-        # Note: search returns NoteRead, not NoteReadWithTags
-        # This is expected as per current implementation
+        assert data["ok"] is True
+        assert len(data["data"]["items"]) == 1
