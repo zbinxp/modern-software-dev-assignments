@@ -47,8 +47,9 @@ export async function deleteNote(id) {
 }
 
 // Action Items API
-export async function getActionItems() {
-  return fetchJSON('/action-items/');
+export async function getActionItems(completed = null) {
+  const params = completed !== null ? `?completed=${completed}` : '';
+  return fetchJSON(`/action-items/${params}`);
 }
 
 export async function createActionItem(item) {
@@ -67,5 +68,12 @@ export async function completeActionItem(id) {
 export async function deleteActionItem(id) {
   return fetchJSON(`/action-items/${id}`, {
     method: 'DELETE',
+  });
+}
+
+export async function bulkCompleteActionItems(ids) {
+  return fetchJSON('/action-items/bulk-complete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
   });
 }

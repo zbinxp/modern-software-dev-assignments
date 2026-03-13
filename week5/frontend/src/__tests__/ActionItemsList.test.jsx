@@ -8,9 +8,10 @@ vi.mock('../api', () => ({
   createActionItem: vi.fn(),
   completeActionItem: vi.fn(),
   deleteActionItem: vi.fn(),
+  bulkCompleteActionItems: vi.fn(),
 }));
 
-import { getActionItems, createActionItem, completeActionItem, deleteActionItem } from '../api';
+import { getActionItems, createActionItem, completeActionItem, deleteActionItem, bulkCompleteActionItems } from '../api';
 
 describe('ActionItemsList', () => {
   beforeEach(() => {
@@ -128,5 +129,54 @@ describe('ActionItemsList', () => {
     });
 
     expect(screen.queryByText('Complete')).toBeNull();
+  });
+
+  it('fetches items with filter when filter is set', async () => {
+    const mockItems = [{ id: 1, description: 'Task', completed: true }];
+    getActionItems.mockResolvedValue(mockItems);
+
+    render(<ActionItemsList />);
+
+    await waitFor(() => {
+      expect(getActionItems).toHaveBeenCalledWith(null);
+    });
+
+    const completedButton = screen.getByText('Completed');
+    fireEvent.click(completedButton);
+
+    await waitFor(() => {
+      expect(getActionItems).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it('can select multiple items and bulk complete', async () => {
+    const mockItems = [
+      { id: 1, description: 'Task 1', completed: false },
+      { id: 2, description: 'Task 2', completed: false },
+    ];
+    getActionItems.mockResolvedValue(mockItems);
+    bulkCompleteActionItems.mockResolvedValue([
+      { id: 1, description: 'Task 1', completed: true },
+      { id: 2, description: 'Task 2', completed: true },
+    ]);
+
+    render(<ActionItemsList />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Task 1 [open]')).toBeDefined();
+    });
+
+    // Get all checkboxes
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    fireEvent.click(checkboxes[1]);
+
+    // Click bulk complete button
+    const bulkButton = screen.getByText(/Complete Selected/);
+    fireEvent.click(bulkButton);
+
+    await waitFor(() => {
+      expect(bulkCompleteActionItems).toHaveBeenCalledWith([1, 2]);
+    });
   });
 });

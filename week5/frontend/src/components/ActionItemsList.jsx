@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
-import { getActionItems, createActionItem, completeActionItem, deleteActionItem } from '../api';
+import { getActionItems, createActionItem, completeActionItem, deleteActionItem, bulkCompleteActionItems } from '../api';
 
 function ActionItemsList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [description, setDescription] = useState('');
+  const [filter, setFilter] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const fetchItems = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getActionItems();
+      const data = await getActionItems(filter);
       setItems(data);
     } catch (err) {
       setError(err.message);
@@ -22,7 +24,7 @@ function ActionItemsList() {
 
   useEffect(() => {
     fetchItems();
-  }, []);
+  }, [filter]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,6 +60,28 @@ function ActionItemsList() {
     }
   };
 
+  const handleBulkComplete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      setError(null);
+      await bulkCompleteActionItems([...selectedIds]);
+      setSelectedIds(new Set());
+      fetchItems();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const toggleSelection = (id) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
   if (loading) {
     return <p>Loading action items...</p>;
   }
@@ -77,12 +101,30 @@ function ActionItemsList() {
         <button type="submit">Add</button>
       </form>
 
+      <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
+        <button onClick={() => setFilter(null)} disabled={filter === null}>All</button>
+        <button onClick={() => setFilter(false)} disabled={filter === false} style={{ marginLeft: '0.5rem' }}>Open</button>
+        <button onClick={() => setFilter(true)} disabled={filter === true} style={{ marginLeft: '0.5rem' }}>Completed</button>
+        {selectedIds.size > 0 && (
+          <button onClick={handleBulkComplete} style={{ marginLeft: '1rem' }}>
+            Complete Selected ({selectedIds.size})
+          </button>
+        )}
+      </div>
+
       {items.length === 0 ? (
         <p>No action items yet.</p>
       ) : (
         <ul>
           {items.map((item) => (
             <li key={item.id}>
+              <input
+                type="checkbox"
+                checked={selectedIds.has(item.id)}
+                onChange={() => toggleSelection(item.id)}
+                disabled={item.completed}
+                style={{ marginRight: '0.5rem' }}
+              />
               {item.description} [{item.completed ? 'done' : 'open'}]
               {!item.completed && (
                 <button
