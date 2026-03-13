@@ -129,3 +129,11 @@ export async function removeTagFromNote(noteId, tagId) {
 export async function getNotesByTag(tagId) {
   return fetchJSON(`/notes/by-tag/${tagId}`);
 }
+
+// Extraction API
+export async function extractFromNote(noteId, apply = false) {
+  return fetchJSON(`/notes/${noteId}/extract`, {
+    method: 'POST',
+    body: JSON.stringify({ apply }),
+  });
+}

@@ -69,3 +69,14 @@ class NoteSearchResponseWithTags(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# Extraction schemas
+class ExtractionResult(BaseModel):
+    hashtags: list[str] = []
+    action_items: list[str] = []
+    legacy_items: list[str] = []
+
+
+class ExtractRequest(BaseModel):
+    apply: bool = False

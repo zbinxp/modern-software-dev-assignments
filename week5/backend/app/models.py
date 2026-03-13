@@ -21,6 +21,7 @@ class Note(Base):
     content = Column(Text, nullable=False)
 
     tags = relationship("Tag", secondary=note_tags, back_populates="notes")
+    action_items = relationship("ActionItem", back_populates="note", cascade="all, delete-orphan")
 
 
 class Tag(Base):
@@ -38,3 +39,6 @@ class ActionItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     description = Column(Text, nullable=False)
     completed = Column(Boolean, default=False, nullable=False)
+    note_id = Column(Integer, ForeignKey("notes.id"), nullable=True)
+
+    note = relationship("Note", back_populates="action_items")

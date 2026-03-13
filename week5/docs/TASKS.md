@@ -31,7 +31,7 @@
 - Update the frontend with filter toggles and a bulk action UI.
 - Add tests to cover filters, bulk behavior, and transactional rollback on error.
 
-## 5) Tags feature with many‑to‑many relation (complex)
+## 5) Tags feature with many‑to‑many relation (complex)[done]
 - Add `Tag` model and a join table `note_tags` (many‑to‑many between `Note` and `Tag`).
 - Endpoints:
   - `GET /tags`, `POST /tags`, `DELETE /tags/{id}`

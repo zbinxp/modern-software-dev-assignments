@@ -2,28 +2,6 @@
 
 Full-stack FastAPI + React application with SQLite database.
 
-## Project Structure
-
-```
-week5/
-├── backend/           # FastAPI backend
-│   ├── app/           # Application code (models, routes, services)
-│   └── tests/         # Backend pytest tests
-├── frontend/          # Vite + React 18 frontend
-│   ├── src/           # React components, API client, tests
-│   │   ├── components/
-│   │   ├── __tests__/
-│   │   ├── api.js
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── dist/          # Built output
-│   ├── package.json
-│   └── vite.config.js
-├── docs/              # Project documentation
-├── Makefile
-└── assignment.md
-```
-
 ## Key Technologies
 
 - **Backend**: FastAPI, SQLAlchemy, pytest

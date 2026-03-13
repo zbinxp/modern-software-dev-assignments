@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getNotes, createNote, deleteNote, searchNotes, getTags, createTag, addTagToNote, removeTagFromNote, getNotesByTag, updateNote } from '../api';
+import { getNotes, createNote, deleteNote, searchNotes, getTags, createTag, addTagToNote, removeTagFromNote, getNotesByTag, updateNote, extractFromNote } from '../api';
 import TagFilter from './TagFilter';
 
 function NotesList() {
@@ -13,6 +13,11 @@ function NotesList() {
   // Form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+
+  // Edit state
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
 
   // Search and pagination state
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,6 +126,14 @@ function NotesList() {
             // Ignore attach errors
           }
         }
+      }
+
+      // Extract and apply checkbox tasks and hashtags from original content
+      try {
+        await extractFromNote(newNote.id, true);
+      } catch (extractErr) {
+        // Ignore extraction errors
+        console.log('Extraction error (ignored):', extractErr);
       }
 
       setTitle('');
@@ -241,40 +254,109 @@ function NotesList() {
   }
 
   return (
-    <div>
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
+      {error && <p style={{ color: 'red', padding: '0.5rem', backgroundColor: '#fee', borderRadius: '4px' }}>Error: {error}</p>}
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-        />
-        <button type="submit">Add</button>
-      </form>
+      {/* Create Note Form */}
+      <div style={{ backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
+        <h3 style={{ margin: '0 0 1rem 0' }}>Create New Note</h3>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <input
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                fontSize: '1rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <textarea
+              placeholder="Content (supports multi-line, #hashtags, - [ ] checkboxes)"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              required
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                fontSize: '1rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            style={{
+              padding: '0.5rem 1.5rem',
+              fontSize: '1rem',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Add Note
+          </button>
+        </form>
+      </div>
 
       {/* Search and Sort Controls */}
-      <div style={{ margin: '1rem 0' }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'inline' }}>
+      <div style={{ margin: '1rem 0', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <form onSubmit={handleSearchSubmit}>
           <input
             type="text"
             placeholder="Search notes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              padding: '0.5rem',
+              fontSize: '0.9rem',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              width: '200px'
+            }}
           />
-          <button type="submit">Search</button>
+          <button
+            type="submit"
+            style={{
+              padding: '0.5rem 1rem',
+              fontSize: '0.9rem',
+              backgroundColor: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              marginLeft: '0.25rem'
+            }}
+          >
+            Search
+          </button>
         </form>
 
-        <select value={sortBy} onChange={handleSortChange} style={{ marginLeft: '0.5rem' }}>
+        <select
+          value={sortBy}
+          onChange={handleSortChange}
+          style={{
+            padding: '0.5rem',
+            fontSize: '0.9rem',
+            border: '1px solid #ddd',
+            borderRadius: '4px'
+          }}
+        >
           <option value="created_desc">Newest</option>
           <option value="created_asc">Oldest</option>
           <option value="title_asc">Title A-Z</option>
@@ -286,70 +368,210 @@ function NotesList() {
       <TagFilter selectedTagId={selectedTagId} onTagSelect={handleTagSelect} />
 
       {/* Result count */}
-      <p>Showing {notes.length} of {totalNotes} notes</p>
+      <p style={{ color: '#666' }}>Showing {notes.length} of {totalNotes} notes</p>
 
       {notes.length === 0 ? (
-        <p>No notes found.</p>
+        <p style={{ textAlign: 'center', color: '#666', padding: '2rem' }}>No notes found.</p>
       ) : (
-        <ul>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {notes.map((note) => (
-            <li key={note.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span>{note.title}: {note.content}</span>
-              {note.tags && note.tags.length > 0 && (
-                <>
-                  {note.tags.map((tag) => (
-                    <span
-                      key={tag.id}
+            <div
+              key={note.id}
+              style={{
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                padding: '1rem',
+                backgroundColor: 'white',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              {editingId === note.id ? (
+                // Edit mode
+                <div>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      fontSize: '1rem',
+                      fontWeight: 'bold',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      marginBottom: '0.5rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={4}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      fontSize: '1rem',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      marginBottom: '0.5rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleEditSave(note.id)}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '0.125rem 0.5rem',
-                        backgroundColor: '#e0e7ff',
-                        borderRadius: '1rem',
-                        fontSize: '0.75rem',
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#4CAF50',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
                       }}
                     >
-                      {tag.name}
+                      Save
+                    </button>
+                    <button
+                      onClick={handleEditCancel}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#9e9e9e',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // View mode
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{note.title}</h3>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
-                        onClick={() => handleRemoveTag(note.id, tag.id)}
+                        onClick={() => handleEditStart(note)}
                         style={{
-                          marginLeft: '0.25rem',
-                          padding: '0 0.25rem',
-                          fontSize: '0.625rem',
-                          background: 'none',
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.85rem',
+                          backgroundColor: '#2196F3',
+                          color: 'white',
                           border: 'none',
-                          color: '#666',
-                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
                         }}
-                        title="Remove tag"
                       >
-                        x
+                        Edit
                       </button>
-                    </span>
-                  ))}
-                </>
+                      <button
+                        onClick={() => handleDelete(note.id)}
+                        style={{
+                          padding: '0.25rem 0.75rem',
+                          fontSize: '0.85rem',
+                          backgroundColor: '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      fontSize: '0.95rem',
+                      lineHeight: '1.5',
+                      color: '#333',
+                      marginBottom: '0.75rem',
+                      padding: '0.5rem',
+                      backgroundColor: '#fafafa',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    {note.content}
+                  </div>
+                  {note.tags && note.tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {note.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '0.25rem 0.75rem',
+                            backgroundColor: '#e3f2fd',
+                            borderRadius: '1rem',
+                            fontSize: '0.8rem',
+                            color: '#1565c0'
+                          }}
+                        >
+                          #{tag.name}
+                          <button
+                            onClick={() => handleRemoveTag(note.id, tag.id)}
+                            style={{
+                              marginLeft: '0.25rem',
+                              padding: '0 0.25rem',
+                              fontSize: '0.7rem',
+                              background: 'none',
+                              border: 'none',
+                              color: '#666',
+                              cursor: 'pointer'
+                            }}
+                            title="Remove tag"
+                          >
+                            x
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-              <button
-                onClick={() => handleDelete(note.id)}
-                style={{ marginLeft: 'auto' }}
-              >
-                Delete
-              </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div style={{ marginTop: '1rem' }}>
-          <button onClick={handlePrevPage} disabled={currentPage === 1}>
+        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: currentPage === 1 ? '#e0e0e0' : '#2196F3',
+              color: currentPage === 1 ? '#999' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+            }}
+          >
             Previous
           </button>
-          <span style={{ margin: '0 0.5rem' }}>
+          <span style={{ padding: '0 1rem' }}>
             Page {currentPage} of {totalPages}
           </span>
-          <button onClick={handleNextPage} disabled={currentPage === totalPages}>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#2196F3',
+              color: currentPage === totalPages ? '#999' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+            }}
+          >
             Next
           </button>
         </div>

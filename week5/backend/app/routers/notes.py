@@ -7,8 +7,9 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Note, Tag
-from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteSearchResponseWithTags, NoteReadWithTags, TagRead, NoteUpdate
+from ..models import Note, Tag, ActionItem
+from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteSearchResponseWithTags, NoteReadWithTags, TagRead, NoteUpdate, ExtractionResult, ExtractRequest
+from ..services.extract import extract_all
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
@@ -53,6 +54,49 @@ def detach_tag_from_note(note_id: int, tag_id: int, db: Session = Depends(get_db
     if tag in note.tags:
         note.tags.remove(tag)
     db.flush()
+
+
+@router.post("/{note_id}/extract", response_model=ExtractionResult)
+def extract_from_note(note_id: int, payload: ExtractRequest, db: Session = Depends(get_db)) -> ExtractionResult:
+    """Extract hashtags, checkbox tasks, and legacy items from a note."""
+    note = db.get(Note, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # Extract all patterns
+    result = extract_all(note.content)
+
+    if payload.apply:
+        # Create tags first and commit them
+        tag_ids = []
+        for tag_name in result["hashtags"]:
+            existing_tag = db.query(Tag).filter(Tag.name == tag_name).first()
+            if not existing_tag:
+                tag = Tag(name=tag_name)
+                db.add(tag)
+                db.flush()
+                tag_ids.append(tag.id)
+            else:
+                tag_ids.append(existing_tag.id)
+
+        # Re-query note to ensure clean state
+        note = db.query(Note).filter(Note.id == note_id).first()
+
+        # Fetch tags by IDs and assign
+        if tag_ids:
+            tags = db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
+            note.tags = list(tags)
+
+        # Create action items for checkbox tasks
+        existing_action_descriptions = {item.description for item in note.action_items}
+        for task_description in result["action_items"]:
+            if task_description not in existing_action_descriptions:
+                action_item = ActionItem(description=task_description, completed=False, note_id=note_id)
+                db.add(action_item)
+
+        db.flush()
+
+    return ExtractionResult(**result)
 
 
 @router.get("/by-tag/{tag_id}", response_model=list[NoteReadWithTags])
@@ -147,12 +191,12 @@ def search_notes(
     )
 
 
-@router.get("/{note_id}", response_model=NoteRead)
-def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
+@router.get("/{note_id}", response_model=NoteReadWithTags)
+def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteReadWithTags:
     note = db.get(Note, note_id)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
-    return NoteRead.model_validate(note)
+    return NoteReadWithTags.model_validate(note)
 
 
 @router.put("/{note_id}", response_model=NoteRead)
