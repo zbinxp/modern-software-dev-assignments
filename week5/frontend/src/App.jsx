@@ -8,11 +8,6 @@ function App() {
       <h1>Modern Software Dev Starter</h1>
 
       <section>
-        <h2>Tags</h2>
-        <TagsList />
-      </section>
-
-      <section>
         <h2>Notes</h2>
         <NotesList />
       </section>
@@ -20,6 +15,11 @@ function App() {
       <section>
         <h2>Action Items</h2>
         <ActionItemsList />
+      </section>
+
+      <section>
+        <h2>Tags</h2>
+        <TagsList />
       </section>
     </main>
   );

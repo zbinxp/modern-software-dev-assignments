@@ -40,7 +40,7 @@
 - Update the UI to display tags as chips and filter notes by tag.
 - Add tests for model relations and endpoint behavior.
 
-## 6) Improve extraction logic and endpoints (medium)
+## 6) Improve extraction logic and endpoints (medium)[done]
 - Extend `backend/app/services/extract.py` to parse:
   - `#hashtags` → tags
   - `- [ ] task text` → action items

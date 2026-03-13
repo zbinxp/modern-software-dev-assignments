@@ -260,8 +260,8 @@ function NotesList() {
       {/* Create Note Form */}
       <div style={{ backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
         <h3 style={{ margin: '0 0 1rem 0' }}>Create New Note</h3>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '0.75rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'block' }}>
+          <div style={{ marginBottom: '0.75rem', display: 'block' }}>
             <input
               type="text"
               placeholder="Title"
@@ -269,6 +269,7 @@ function NotesList() {
               onChange={(e) => setTitle(e.target.value)}
               required
               style={{
+                display: 'block',
                 width: '100%',
                 padding: '0.5rem',
                 fontSize: '1rem',
@@ -278,7 +279,7 @@ function NotesList() {
               }}
             />
           </div>
-          <div style={{ marginBottom: '0.75rem' }}>
+          <div style={{ marginBottom: '0.75rem', display: 'block' }}>
             <textarea
               placeholder="Content (supports multi-line, #hashtags, - [ ] checkboxes)"
               value={content}
@@ -286,6 +287,7 @@ function NotesList() {
               required
               rows={4}
               style={{
+                display: 'block',
                 width: '100%',
                 padding: '0.5rem',
                 fontSize: '1rem',
@@ -300,13 +302,16 @@ function NotesList() {
           <button
             type="submit"
             style={{
-              padding: '0.5rem 1.5rem',
+              display: 'block',
+              width: '100%',
+              padding: '0.75rem',
               fontSize: '1rem',
               backgroundColor: '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              marginTop: '0.5rem'
             }}
           >
             Add Note
