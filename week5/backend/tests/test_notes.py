@@ -37,11 +37,11 @@ def test_notes_without_trailing_slash_returns_json(client):
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     assert r.headers["content-type"].startswith("application/json"), \
         f"Expected JSON, got {r.headers.get('content-type')}: {r.text[:100]}"
-    # Should be an envelope with data list
+    # Should be an envelope with paginated data
     data = r.json()
     assert data["ok"] is True
     assert "data" in data
-    assert isinstance(data["data"], list), "Expected JSON array in data"
+    assert "items" in data["data"], "Expected paginated response with items"
 
 
 def test_notes_search_without_trailing_slash(client):
@@ -405,4 +405,83 @@ def test_list_notes_returns_envelope(client):
     data = r.json()
     assert data["ok"] is True
     assert "data" in data
-    assert isinstance(data["data"], list)
+    # Now returns paginated object with items, total, page, page_size
+    assert "items" in data["data"]
+    assert "total" in data["data"]
+    assert "page" in data["data"]
+    assert "page_size" in data["data"]
+
+
+def test_list_notes_pagination_returns_correct_subset(client):
+    """Test pagination returns correct subset of results."""
+    # Create multiple notes
+    for i in range(15):
+        client.post("/notes/", json={"title": f"Note {i}", "content": f"Content {i}"})
+
+    # Request first page with 5 items
+    r = client.get("/notes/", params={"page": 1, "page_size": 5})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["data"]["items"]) == 5
+    assert data["data"]["total"] == 15
+    assert data["data"]["page"] == 1
+    assert data["data"]["page_size"] == 5
+
+    # Request second page
+    r = client.get("/notes/", params={"page": 2, "page_size": 5})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["data"]["items"]) == 5
+    assert data["data"]["page"] == 2
+
+
+def test_list_notes_pagination_empty_last_page(client):
+    """Test request beyond available pages returns empty results but preserves total."""
+    # Create a few notes
+    client.post("/notes/", json={"title": "Note 1", "content": "Content 1"})
+
+    # Request page beyond available
+    r = client.get("/notes/", params={"page": 100, "page_size": 10})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["data"]["items"]) == 0
+    assert data["data"]["total"] == 1  # Still have 1 total
+
+
+def test_list_notes_pagination_large_page_size(client):
+    """Test page_size larger than total returns all items."""
+    # Create 3 notes
+    for i in range(3):
+        client.post("/notes/", json={"title": f"Note {i}", "content": f"Content {i}"})
+
+    # Request page_size larger than total
+    r = client.get("/notes/", params={"page": 1, "page_size": 100})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["data"]["items"]) == 3
+    assert data["data"]["total"] == 3
+
+
+def test_list_notes_invalid_page_defaults_to_1(client):
+    """Test invalid page (0 or negative) defaults to 1."""
+    client.post("/notes/", json={"title": "Note", "content": "Content"})
+
+    r = client.get("/notes/", params={"page": 0})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["data"]["page"] == 1
+
+    r = client.get("/notes/", params={"page": -1})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["data"]["page"] == 1
+
+
+def test_list_notes_page_size_capped_at_100(client):
+    """Test page_size is capped at 100."""
+    client.post("/notes/", json={"title": "Note", "content": "Content"})
+
+    r = client.get("/notes/", params={"page_size": 500})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["data"]["page_size"] == 100

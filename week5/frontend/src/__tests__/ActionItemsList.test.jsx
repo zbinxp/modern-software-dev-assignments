@@ -29,7 +29,7 @@ describe('ActionItemsList', () => {
       { id: 1, description: 'Task 1', completed: false },
       { id: 2, description: 'Task 2', completed: true },
     ];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 2, page: 1, page_size: 10 });
 
     render(<ActionItemsList />);
 
@@ -40,7 +40,7 @@ describe('ActionItemsList', () => {
   });
 
   it('renders empty state when no items', async () => {
-    getActionItems.mockResolvedValue([]);
+    getActionItems.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10 });
 
     render(<ActionItemsList />);
 
@@ -60,7 +60,7 @@ describe('ActionItemsList', () => {
   });
 
   it('can create a new action item', async () => {
-    getActionItems.mockResolvedValue([]);
+    getActionItems.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10 });
     createActionItem.mockResolvedValue({ id: 1, description: 'New Task', completed: false });
 
     render(<ActionItemsList />);
@@ -82,7 +82,7 @@ describe('ActionItemsList', () => {
 
   it('can complete an action item', async () => {
     const mockItems = [{ id: 1, description: 'Task', completed: false }];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 1, page: 1, page_size: 10 });
     completeActionItem.mockResolvedValue({ id: 1, description: 'Task', completed: true });
 
     render(<ActionItemsList />);
@@ -101,7 +101,7 @@ describe('ActionItemsList', () => {
 
   it('can delete an action item', async () => {
     const mockItems = [{ id: 1, description: 'Task', completed: false }];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 1, page: 1, page_size: 10 });
     deleteActionItem.mockResolvedValue(undefined);
 
     render(<ActionItemsList />);
@@ -120,7 +120,7 @@ describe('ActionItemsList', () => {
 
   it('does not show Complete button for completed items', async () => {
     const mockItems = [{ id: 1, description: 'Task', completed: true }];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 1, page: 1, page_size: 10 });
 
     render(<ActionItemsList />);
 
@@ -133,19 +133,19 @@ describe('ActionItemsList', () => {
 
   it('fetches items with filter when filter is set', async () => {
     const mockItems = [{ id: 1, description: 'Task', completed: true }];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 1, page: 1, page_size: 10 });
 
     render(<ActionItemsList />);
 
     await waitFor(() => {
-      expect(getActionItems).toHaveBeenCalledWith(null);
+      expect(getActionItems).toHaveBeenCalledWith(null, 1, 10);
     });
 
     const completedButton = screen.getByText('Completed');
     fireEvent.click(completedButton);
 
     await waitFor(() => {
-      expect(getActionItems).toHaveBeenCalledWith(true);
+      expect(getActionItems).toHaveBeenCalledWith(true, 1, 10);
     });
   });
 
@@ -154,7 +154,7 @@ describe('ActionItemsList', () => {
       { id: 1, description: 'Task 1', completed: false },
       { id: 2, description: 'Task 2', completed: false },
     ];
-    getActionItems.mockResolvedValue(mockItems);
+    getActionItems.mockResolvedValue({ items: mockItems, total: 2, page: 1, page_size: 10 });
     bulkCompleteActionItems.mockResolvedValue([
       { id: 1, description: 'Task 1', completed: true },
       { id: 2, description: 'Task 2', completed: true },

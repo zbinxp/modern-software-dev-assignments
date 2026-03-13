@@ -74,6 +74,21 @@ class NoteSearchResponseWithTags(BaseModel):
     page_size: int
 
 
+# Paginated list responses
+class PaginatedNoteResponse(BaseModel):
+    items: list[NoteReadWithTags]
+    total: int
+    page: int
+    page_size: int
+
+
+class PaginatedActionItemResponse(BaseModel):
+    items: list[ActionItemRead]
+    total: int
+    page: int
+    page_size: int
+
+
 # Extraction schemas
 class ExtractionResult(BaseModel):
     hashtags: list[str] = []

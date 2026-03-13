@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..exceptions import NotFoundException
 from ..models import Note, Tag, ActionItem
-from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteSearchResponseWithTags, NoteReadWithTags, TagRead, NoteUpdate, ExtractionResult, ExtractRequest, SuccessResponse
+from ..schemas import NoteCreate, NoteRead, NoteSearchResponse, NoteSearchResponseWithTags, NoteReadWithTags, TagRead, NoteUpdate, ExtractionResult, ExtractRequest, SuccessResponse, PaginatedNoteResponse
 from ..services.extract import extract_all
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -121,10 +121,33 @@ def list_notes_redirect():
     return RedirectResponse(url="/notes/")
 
 
-@router.get("/", response_model=SuccessResponse[list[NoteReadWithTags]])
-def list_notes(db: Session = Depends(get_db)):
-    rows = db.execute(select(Note)).scalars().all()
-    data = [NoteReadWithTags.model_validate(row) for row in rows]
+@router.get("/", response_model=SuccessResponse[PaginatedNoteResponse])
+def list_notes(
+    page: int = 1,
+    page_size: int = 10,
+    db: Session = Depends(get_db)
+):
+    # Cap page_size at 100
+    page_size = min(page_size, 100)
+
+    # Ensure page is at least 1
+    page = max(page, 1)
+
+    # Get total count
+    total = db.execute(select(func.count()).select_from(Note)).scalar() or 0
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    rows = db.execute(
+        select(Note).offset(offset).limit(page_size)
+    ).scalars().all()
+
+    data = PaginatedNoteResponse(
+        items=[NoteReadWithTags.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
     return SuccessResponse(ok=True, data=data)
 
 

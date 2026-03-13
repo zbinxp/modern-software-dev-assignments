@@ -48,14 +48,14 @@
   - Returns structured extraction results and optionally persists new tags/action items when `apply=true`.
 - Add tests for extraction parsing and the `apply=true` persistence path.
 
-## 7) Robust error handling and response envelopes (easy‑medium)
+## 7) Robust error handling and response envelopes (easy‑medium)[done]
 - Add validation with Pydantic models (min length constraints, non‑empty strings).
 - Add global exception handlers to return consistent JSON envelopes:
   - `{ "ok": false, "error": { "code": "NOT_FOUND", "message": "..." } }`
   - Success responses: `{ "ok": true, "data": ... }`
 - Update tests to assert envelope shapes for both success and error cases.
 
-## 8) List endpoint pagination for all collections (easy)
+## 8) List endpoint pagination for all collections (easy)[done]
 - Add `page` and `page_size` to `GET /notes` and `GET /action-items`.
 - Return `items` and `total` for each.
 - Update the frontend to paginate lists; add tests for boundaries (empty last page, too‑large page size).

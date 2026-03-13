@@ -3,14 +3,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..exceptions import NotFoundException
 from ..models import ActionItem
-from ..schemas import ActionItemCreate, ActionItemRead, SuccessResponse
+from ..schemas import ActionItemCreate, ActionItemRead, SuccessResponse, PaginatedActionItemResponse
 
 router = APIRouter(prefix="/action-items", tags=["action_items"])
 
@@ -21,16 +21,43 @@ def list_items_redirect():
     return RedirectResponse(url="/action-items/")
 
 
-@router.get("/", response_model=SuccessResponse[list[ActionItemRead]])
+@router.get("/", response_model=SuccessResponse[PaginatedActionItemResponse])
 def list_items(
     completed: Optional[bool] = None,
+    page: int = 1,
+    page_size: int = 10,
     db: Session = Depends(get_db)
 ):
+    # Cap page_size at 100
+    page_size = min(page_size, 100)
+
+    # Ensure page is at least 1
+    page = max(page, 1)
+
+    # Build base query
     query = select(ActionItem)
+    count_query = select(func.count()).select_from(ActionItem)
+
+    # Apply filter if provided
     if completed is not None:
         query = query.where(ActionItem.completed == completed)
-    rows = db.execute(query).scalars().all()
-    data = [ActionItemRead.model_validate(row) for row in rows]
+        count_query = count_query.where(ActionItem.completed == completed)
+
+    # Get total count
+    total = db.execute(count_query).scalar() or 0
+
+    # Apply pagination
+    offset = (page - 1) * page_size
+    rows = db.execute(
+        query.offset(offset).limit(page_size)
+    ).scalars().all()
+
+    data = PaginatedActionItemResponse(
+        items=[ActionItemRead.model_validate(row) for row in rows],
+        total=total,
+        page=page,
+        page_size=page_size
+    )
     return SuccessResponse(ok=True, data=data)
 
 

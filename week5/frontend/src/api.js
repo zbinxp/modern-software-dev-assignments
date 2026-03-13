@@ -35,8 +35,11 @@ async function fetchJSON(url, options = {}) {
 }
 
 // Notes API
-export async function getNotes() {
-  return fetchJSON('/notes/');
+export async function getNotes(page = 1, pageSize = 10) {
+  const params = new URLSearchParams();
+  params.append('page', page);
+  params.append('page_size', pageSize);
+  return fetchJSON(`/notes/?${params.toString()}`);
 }
 
 export async function getNote(id) {
@@ -79,9 +82,12 @@ export async function updateNote(id, note) {
 }
 
 // Action Items API
-export async function getActionItems(completed = null) {
-  const params = completed !== null ? `?completed=${completed}` : '';
-  return fetchJSON(`/action-items/${params}`);
+export async function getActionItems(completed = null, page = 1, pageSize = 10) {
+  const params = new URLSearchParams();
+  if (completed !== null) params.append('completed', completed);
+  params.append('page', page);
+  params.append('page_size', pageSize);
+  return fetchJSON(`/action-items/?${params.toString()}`);
 }
 
 export async function createActionItem(item) {

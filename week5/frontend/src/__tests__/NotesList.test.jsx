@@ -85,8 +85,8 @@ describe('NotesList', () => {
     });
 
     const titleInput = screen.getByPlaceholderText('Title');
-    const contentInput = screen.getByPlaceholderText('Content');
-    const submitButton = screen.getByText('Add');
+    const contentInput = screen.getByPlaceholderText(/^Content/);
+    const submitButton = screen.getByText('Add Note');
 
     fireEvent.change(titleInput, { target: { value: 'New' } });
     fireEvent.change(contentInput, { target: { value: 'Note' } });

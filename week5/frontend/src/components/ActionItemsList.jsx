@@ -9,12 +9,18 @@ function ActionItemsList() {
   const [filter, setFilter] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+
   const fetchItems = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getActionItems(filter);
-      setItems(data);
+      const data = await getActionItems(filter, currentPage, pageSize);
+      setItems(data.items);
+      setTotalItems(data.total);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -24,7 +30,7 @@ function ActionItemsList() {
 
   useEffect(() => {
     fetchItems();
-  }, [filter]);
+  }, [filter, currentPage]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,6 +88,25 @@ function ActionItemsList() {
     setSelectedIds(newSelected);
   };
 
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    setCurrentPage(1); // Reset to first page on filter change
+  };
+
   if (loading) {
     return <p>Loading action items...</p>;
   }
@@ -102,15 +127,18 @@ function ActionItemsList() {
       </form>
 
       <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-        <button onClick={() => setFilter(null)} disabled={filter === null}>All</button>
-        <button onClick={() => setFilter(false)} disabled={filter === false} style={{ marginLeft: '0.5rem' }}>Open</button>
-        <button onClick={() => setFilter(true)} disabled={filter === true} style={{ marginLeft: '0.5rem' }}>Completed</button>
+        <button onClick={() => handleFilterChange(null)} disabled={filter === null}>All</button>
+        <button onClick={() => handleFilterChange(false)} disabled={filter === false} style={{ marginLeft: '0.5rem' }}>Open</button>
+        <button onClick={() => handleFilterChange(true)} disabled={filter === true} style={{ marginLeft: '0.5rem' }}>Completed</button>
         {selectedIds.size > 0 && (
           <button onClick={handleBulkComplete} style={{ marginLeft: '1rem' }}>
             Complete Selected ({selectedIds.size})
           </button>
         )}
       </div>
+
+      {/* Result count */}
+      <p style={{ color: '#666' }}>Showing {items.length} of {totalItems} action items</p>
 
       {items.length === 0 ? (
         <p>No action items yet.</p>
@@ -143,6 +171,43 @@ function ActionItemsList() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: currentPage === 1 ? '#e0e0e0' : '#2196F3',
+              color: currentPage === 1 ? '#999' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Previous
+          </button>
+          <span style={{ padding: '0 1rem' }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: currentPage === totalPages ? '#e0e0e0' : '#2196F3',
+              color: currentPage === totalPages ? '#999' : 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Next
+          </button>
+        </div>
       )}
     </div>
   );
