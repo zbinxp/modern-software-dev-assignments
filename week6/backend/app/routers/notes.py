@@ -10,6 +10,9 @@ from ..schemas import NoteCreate, NotePatch, NoteRead
 
 router = APIRouter(prefix="/notes", tags=["notes"])
 
+# Allowed sort fields for list_notes endpoint - prevents security issues via sort parameter
+ALLOWED_SORT_FIELDS = frozenset({"id", "title", "content", "created_at", "updated_at"})
+
 
 @router.get("/", response_model=list[NoteRead])
 def list_notes(
@@ -25,7 +28,7 @@ def list_notes(
 
     sort_field = sort.lstrip("-")
     order_fn = desc if sort.startswith("-") else asc
-    if hasattr(Note, sort_field):
+    if sort_field in ALLOWED_SORT_FIELDS:
         stmt = stmt.order_by(order_fn(getattr(Note, sort_field)))
     else:
         stmt = stmt.order_by(desc(Note.created_at))
@@ -41,6 +44,35 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)) -> NoteRead:
     db.flush()
     db.refresh(note)
     return NoteRead.model_validate(note)
+
+
+@router.get("/unsafe-search", response_model=list[NoteRead])
+def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
+    # Security fix: Use parameterized queries instead of f-string interpolation
+    # to prevent SQL injection (CWE-89)
+    sql = text(
+        """
+        SELECT id, title, content, created_at, updated_at
+        FROM notes
+        WHERE title LIKE :query OR content LIKE :query
+        ORDER BY created_at DESC
+        LIMIT 50
+        """
+    )
+    # Use parameterized query with bound parameter
+    rows = db.execute(sql, {"query": f"%{q}%"}).all()
+    results: list[NoteRead] = []
+    for r in rows:
+        results.append(
+            NoteRead(
+                id=r.id,
+                title=r.title,
+                content=r.content,
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+            )
+        )
+    return results
 
 
 @router.patch("/{note_id}", response_model=NoteRead)
@@ -66,32 +98,6 @@ def get_note(note_id: int, db: Session = Depends(get_db)) -> NoteRead:
     return NoteRead.model_validate(note)
 
 
-@router.get("/unsafe-search", response_model=list[NoteRead])
-def unsafe_search(q: str, db: Session = Depends(get_db)) -> list[NoteRead]:
-    sql = text(
-        f"""
-        SELECT id, title, content, created_at, updated_at
-        FROM notes
-        WHERE title LIKE '%{q}%' OR content LIKE '%{q}%'
-        ORDER BY created_at DESC
-        LIMIT 50
-        """
-    )
-    rows = db.execute(sql).all()
-    results: list[NoteRead] = []
-    for r in rows:
-        results.append(
-            NoteRead(
-                id=r.id,
-                title=r.title,
-                content=r.content,
-                created_at=r.created_at,
-                updated_at=r.updated_at,
-            )
-        )
-    return results
-
-
 @router.get("/debug/hash-md5")
 def debug_hash_md5(q: str) -> dict[str, str]:
     import hashlib
@@ -101,8 +107,9 @@ def debug_hash_md5(q: str) -> dict[str, str]:
 
 @router.get("/debug/eval")
 def debug_eval(expr: str) -> dict[str, str]:
-    result = str(eval(expr))  # noqa: S307
-    return {"result": result}
+    # Security fix: Removed dangerous eval() usage that allowed code injection.
+    # This endpoint now returns a safe error response.
+    raise HTTPException(status_code=400, detail="debug/eval endpoint is disabled for security reasons")
 
 
 @router.get("/debug/run")

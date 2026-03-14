@@ -60,11 +60,11 @@
 - Return `items` and `total` for each.
 - Update the frontend to paginate lists; add tests for boundaries (empty last page, too‑large page size).
 
-## 9) Query performance and indexes (easy‑medium)
+## 9) Query performance and indexes (easy‑medium)[done]
 - Add SQLite indexes where beneficial (e.g., `notes.title`, join tables for tags).
 - Verify improved query plans and ensure no regressions through tests that seed larger datasets.
 
-## 10) Test coverage improvements (easy)
+## 10) Test coverage improvements (easy)[done]
 - Add tests covering:
   - 400/404 scenarios for each endpoint
   - Concurrency/transactional behavior for bulk operations

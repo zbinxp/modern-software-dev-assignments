@@ -19,50 +19,50 @@ This assignment took me about **TODO** hours to do.
 ## Brief findings overview 
 > TODO
 
-## Fix #1
+## Fix #1 Code Injection with FastAPI
 a. File and line(s)
-> TODO
+> backend/app/routers/notes.py:104
 
 b. Rule/category Semgrep flagged
-> TODO
+> Critical severity
 
 c. Brief risk description
-> TODO
+> The application might dynamically evaluate untrusted input, which can lead to a code injection vulnerability. An attacker can execute arbitrary code, potentially gaining complete control of the system. To prevent this vulnerability, avoid executing code containing user input. If this is unavoidable, validate and sanitize the input, and use safe alternatives for evaluating user input.
 
 d. Your change (short code diff or explanation, AI coding tool usage)
-> TODO
+> Security fix: Removed dangerous eval() usage that allowed code injection.
 
 e. Why this mitigates the issue
-> TODO
+> eval() code is removed, so the issue is gone.
 
-## Fix #2
+## Fix #2 SQL Injection with SQLAlchemy
 a. File and line(s)
-> TODO
+> backend/app/routers/notes.py:72
 
 b. Rule/category Semgrep flagged
-> TODO
+> Critical severity
 
 c. Brief risk description
-> TODO
+> Untrusted input might be used to build a database query, which can lead to a SQL injection vulnerability. An attacker can execute malicious SQL statements and gain unauthorized access to sensitive data, modify, delete data, or execute arbitrary system commands. Use the SQLAlchemy ORM provided functions to build SQL queries instead to avoid SQL injection.
 
 d. Your change (short code diff or explanation, AI coding tool usage)
-> TODO
+> Security fix: Use parameterized queries instead of f-string interpolation to prevent SQL injection (CWE-89)
 
 e. Why this mitigates the issue
-> TODO
+> parameterized queries using :query placeholder with bound parameters avoid SQL Injection
 
-## Fix #3
+## Fix #3 SQL Injection with FastAPI
 a. File and line(s)
-> TODO
+> Tbackend/app/routers/notes.py:36DO
 
 b. Rule/category Semgrep flagged
-> TODO
+> Critical severity
 
 c. Brief risk description
-> TODO
+> Untrusted input might be used to build a database query, which can lead to a SQL injection vulnerability. An attacker can execute malicious SQL statements and gain unauthorized access to sensitive data, modify, delete data, or execute arbitrary system commands. The driver API has the ability to bind parameters to the query in a safe way.
 
 d. Your change (short code diff or explanation, AI coding tool usage)
-> TODO
+> use whitelist `if sort_field in ALLOWED_SORT_FIELDS:` to replace old statement `if hasattr(Note, sort_field):`
 
 e. Why this mitigates the issue
-> TODO
+> malicious code would not pass the condition check

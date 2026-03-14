@@ -11,6 +11,10 @@ from ..schemas import ActionItemCreate, ActionItemPatch, ActionItemRead
 router = APIRouter(prefix="/action-items", tags=["action_items"])
 
 
+# Allowed sort fields for list_items endpoint - prevents SQL injection via sort parameter
+ALLOWED_SORT_FIELDS = frozenset({"id", "description", "completed", "created_at", "updated_at"})
+
+
 @router.get("/", response_model=list[ActionItemRead])
 def list_items(
     db: Session = Depends(get_db),
@@ -25,7 +29,7 @@ def list_items(
 
     sort_field = sort.lstrip("-")
     order_fn = desc if sort.startswith("-") else asc
-    if hasattr(ActionItem, sort_field):
+    if sort_field in ALLOWED_SORT_FIELDS:
         stmt = stmt.order_by(order_fn(getattr(ActionItem, sort_field)))
     else:
         stmt = stmt.order_by(desc(ActionItem.created_at))
