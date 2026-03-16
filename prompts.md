@@ -49,4 +49,6 @@ analysis code first, then design a plan for this task: add CRUD support to the n
 
 # task2: Enhance the action item extraction functionality with more sophisticated pattern recognition and analysis.
 analysis code about action item extraction first, then design a plan for this task: enhance the action item extraction functionality with more sophisticated pattern recognition, add unit tests for this feature, ensure proper error handling. Save the plan to `docs/task2_plan.md`
+
+# task3: Create new database models with relationships and update the application to support them.
 ```
