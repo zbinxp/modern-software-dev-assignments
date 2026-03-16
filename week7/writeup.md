@@ -47,13 +47,26 @@ c. Graphite Diamond generated code review
 
 ## Task 2: Extend extraction logic
 a. Links to relevant commits/issues
-> TODO
+> [pull request](https://github.com/opencane/modern-software-dev-assignments/pull/2)
 
 b. PR Description
-> TODO
+> 
+```
+## Summary
+- Enhanced action item extraction with sophisticated pattern recognition (checkbox [ ], priority (A), @mentions, action verbs)
+- Added entity extraction for assignees and due dates
+- Added confidence scoring for pattern matches  
+- Added comprehensive unit tests (36 tests)
+- Added proper error handling for None/invalid inputs
+- Maintained backward compatibility
+
+## Test plan
+- [x] Run `poetry run pytest backend/tests/test_extract.py` - all 36 tests pass
+- [x] Verify backward compatibility with existing code
+```
 
 c. Graphite Diamond generated code review
-> TODO
+> Graphite found no issues
 
 ## Task 3: Try adding a new model and relationships
 a. Links to relevant commits/issues
