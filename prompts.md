@@ -40,3 +40,11 @@ examine Code Injection with FastAPI issue at @backend/app/routers/notes.py:104, 
 examine SQL Injection with SQLAlchemy issue at @backend/app/routers/notes.py:72, make sure you understand the issue fully. Add unit tests for this issue. Then fix it. Use agents if necessary
 
 ```
+
+## week7
+
+```markdown
+# task1: Add additional API endpoints and implement proper input validation and error handling.
+analysis code first, then design a plan for this task: add CRUD support to the notes, cover both frontend and backend, add unit tests for this feature, ensure proper input validation and error handling. Save the plan to `docs/task1_plan.md`
+
+```
